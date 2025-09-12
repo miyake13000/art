@@ -1,0 +1,11 @@
+[package]
+name = "art"
+version = "0.1.0"
+authors = ["miyake13000 <miyake2020@s.okayama-u.ac.jp>"]
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3.31"
+nix = { version = "0.30.1", features = ["event"] }
