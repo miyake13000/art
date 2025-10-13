@@ -1,14 +1,16 @@
 use art::{Runtime, net::*};
 use std::io::Write;
+use std::net::Ipv4Addr;
 
 fn main() {
     let runtime = Runtime::new();
     let spawner = runtime.get_spawner();
 
-    let server = async move {
+    runtime.spawn(async move {
         // 非同期アクセプト用のリスナを生成
-        let addr = (std::net::Ipv4Addr::new(0, 0, 0, 0), 8000);
+        let addr = (Ipv4Addr::new(127, 0, 0, 1), 8000);
         let listener = TcpListener::listen(addr);
+        println!("Server starts on: {}:{}", addr.0, addr.1);
         loop {
             // 非同期コネクションアクセプト
             let (mut reader, mut writer, addr) = listener.accept().await;
@@ -25,9 +27,7 @@ fn main() {
                 println!("close: {}", addr);
             });
         }
-    };
+    });
 
-    // タスクを生成して実行
-    runtime.spawn(server);
     runtime.run();
 }
