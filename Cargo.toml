@@ -2,6 +2,7 @@
 members = [
     "art",
     "sched-art",
+    "examples"
 ]
 resolver = "3"
 

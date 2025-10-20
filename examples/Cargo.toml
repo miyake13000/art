@@ -1,0 +1,13 @@
+[package]
+name = "examples"
+version = "0.0.0"
+publish = false
+edition = "2024"
+license = "MIT"
+
+[dev-dependencies]
+art = { path = "../art" }
+
+[[example]]
+name = "server"
+path = "server.rs"
