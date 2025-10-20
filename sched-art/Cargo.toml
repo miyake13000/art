@@ -1,0 +1,15 @@
+[package]
+name = "sched-art"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license-file.workspace = true
+
+[dependencies]
+anyhow = "1.0.100"
+libbpf-rs = "0.25.0"
+log = "0.4.28"
+scx_utils = "1.0.22"
+
+[build-dependencies]
+scx_cargo = "1.0.22"

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "art",
+    "sched-art",
 ]
 resolver = "3"
 
