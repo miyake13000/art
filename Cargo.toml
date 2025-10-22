@@ -11,3 +11,7 @@ version = "0.1.0"
 authors = ["nomlab <https://github.com/nomlab>"]
 edition = "2024"
 license-file = "LICENSE"
+
+[workspace.dependencies]
+art = { path = "art" }
+sched-art = { path = "sched-art" }

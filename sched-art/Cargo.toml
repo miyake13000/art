@@ -11,6 +11,8 @@ ctrlc = "3.5.0"
 libbpf-rs = "0.25.0"
 log = "0.4.28"
 scx_utils = "1.0.22"
+simplelog = "0.12.2"
+thiserror = "2.0.17"
 
 [build-dependencies]
 scx_cargo = "1.0.22"
