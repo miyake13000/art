@@ -1,4 +1,5 @@
 #include <scx/common.bpf.h>
+#include <vmlinux.h>
 
 char _license[] SEC("license") = "GPL";
 
@@ -6,9 +7,9 @@ UEI_DEFINE(uei);
 
 static bool running;
 struct {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, pid_t);
-    __type(value, bool);
+    __type(value, u8);
     __uint(max_entries, 1024);
 } prior_tasks SEC(".maps");
 

@@ -82,6 +82,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "nix",
+ "sched-art",
 ]
 
 [[package]]
@@ -1049,6 +1050,7 @@ dependencies = [
  "ctrlc",
  "libbpf-rs 0.25.0",
  "log",
+ "nix",
  "scx_cargo",
  "scx_utils",
  "simplelog",

@@ -3,9 +3,12 @@ use std::mem::MaybeUninit;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::fs::create_dir_all;
 use std::path::PathBuf;
+use std::ffi::c_int;
+use nix::unistd::gettid;
 use thiserror::Error;
 use log::{info, SetLoggerError};
 use simplelog::{SimpleLogger, Config};
+use libbpf_rs::{MapHandle, MapCore, MapFlags};
 pub use simplelog::LevelFilter;
 pub use libbpf_rs::OpenObject;
 
@@ -14,6 +17,7 @@ use bpf_skel::*;
 
 const MAP_PIN_PATH: &str = "/sys/fs/bpf/sched_ext/art/prior_tasks";
 
+#[derive(Debug)]
 pub struct SchedHandler {
     sender: Sender<()>,
 }
@@ -26,7 +30,7 @@ impl SchedHandler {
 
 #[derive(Debug, Error)]
 pub enum SchedulerError {
-    #[error("Failed to initialize logger")]
+    #[error("Failed to initialize logger: {0}")]
     LoggerInitError(#[from] SetLoggerError),
     #[error("Failed to open BPF scheduler: {0}")]
     OpenError(String),
@@ -34,6 +38,10 @@ pub enum SchedulerError {
     LoadError(String),
     #[error("Failed to attach BPF scheduler: {0}")]
     AttachError(String),
+    #[error("Failed to open BPF Map: {0}")]
+    BPFMapOpenError(String),
+    #[error("Failed to get priority: {0}")]
+    PrioritizeError(#[from] nix::Error),
 }
 
 pub struct Scheduler<'a> {
@@ -77,6 +85,30 @@ impl<'a> Scheduler<'a> {
         // Remove the pinned map
         self.skel.maps.prior_tasks.unpin(&pin_path).unwrap();
         info!("Unpinned BPF Map from \"{MAP_PIN_PATH}\"");
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct SchedulerClient {
+    map: MapHandle
+}
+
+impl SchedulerClient {
+    pub fn new() -> Result<Self, SchedulerError> {
+        let map = MapHandle::from_pinned_path(MAP_PIN_PATH).unwrap();
+
+        Ok(Self { map })
+    }
+
+    pub fn get_priority(&self) -> Result<(), SchedulerError> {
+        let key = gettid().as_raw() as c_int;
+        let key_bytes = key.to_le_bytes();
+        let value = 1u8;
+        let value_bytes = value.to_le_bytes();
+
+        self.map.update(&key_bytes, &value_bytes, MapFlags::ANY).unwrap();
 
         Ok(())
     }

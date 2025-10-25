@@ -10,3 +10,4 @@ license-file.workspace = true
 [dependencies]
 futures = "0.3.31"
 nix = { version = "0.30.1", features = ["event"] }
+sched-art = { workspace = true }
