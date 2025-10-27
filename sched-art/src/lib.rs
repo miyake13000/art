@@ -5,6 +5,7 @@ mod client;
 pub use client::SchedulerClient;
 mod scheduler;
 pub use scheduler::Scheduler;
+pub use simplelog::LevelFilter;
 
 pub(crate) mod bpf_skel;
 
