@@ -1,13 +1,13 @@
-use std::ffi::c_int;
+use libbpf_rs::{MapCore, MapFlags, MapHandle};
 use nix::unistd::gettid;
-use libbpf_rs::{MapHandle, MapCore, MapFlags};
+use std::ffi::c_int;
 
-use super::MAP_PIN_PATH;
 use super::SchedulerError;
+use super::MAP_PIN_PATH;
 
 #[derive(Debug)]
 pub struct SchedulerClient {
-    map: MapHandle
+    map: MapHandle,
 }
 
 impl SchedulerClient {
@@ -23,7 +23,18 @@ impl SchedulerClient {
         let value = 1u8;
         let value_bytes = value.to_le_bytes();
 
-        self.map.update(&key_bytes, &value_bytes, MapFlags::ANY).unwrap();
+        self.map
+            .update(&key_bytes, &value_bytes, MapFlags::ANY)
+            .unwrap();
+
+        Ok(())
+    }
+
+    pub fn release_priority(&self) -> Result<(), SchedulerError> {
+        let key = gettid().as_raw() as c_int;
+        let key_bytes = key.to_le_bytes();
+
+        self.map.delete(&key_bytes).unwrap();
 
         Ok(())
     }
