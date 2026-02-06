@@ -41,6 +41,10 @@ s32 BPF_STRUCT_OPS(art_select_cpu, struct task_struct *p, s32 prev_cpu, u64 wake
 
 void BPF_STRUCT_OPS(art_enqueue, struct task_struct *p, u64 enq_flags)
 {
+    if (is_prior_task(p->pid)) {
+        scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL, SCX_ENQ_HEAD);
+    }
+
     scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL, 0);
 
 }
