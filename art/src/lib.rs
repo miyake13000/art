@@ -4,15 +4,15 @@ pub(crate) mod task;
 
 pub mod net;
 
-use std::sync::{Arc, OnceLock};
 use sched_art::SchedulerClient;
+use std::sync::{Arc, OnceLock};
 
 static SELECTOR: OnceLock<Arc<selector::IOSelector>> = OnceLock::new();
+static SCHEDULER: OnceLock<SchedulerClient> = OnceLock::new();
 
 #[derive(Debug)]
 pub struct Runtime {
     executor: executor::Executor,
-    sched_client: SchedulerClient,
 }
 
 #[allow(clippy::new_without_default)]
@@ -24,10 +24,12 @@ impl Runtime {
             .expect("Selector has already initialized");
 
         let sched_client = SchedulerClient::new().unwrap();
+        SCHEDULER
+            .set(sched_client)
+            .expect("Scheduler has already initialized");
 
         Self {
             executor: executor::Executor::new(),
-            sched_client,
         }
     }
 
@@ -41,7 +43,6 @@ impl Runtime {
     }
 
     pub fn run(&self) {
-        self.sched_client.get_priority().unwrap();
         self.executor.run();
     }
 }
