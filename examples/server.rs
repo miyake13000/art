@@ -1,9 +1,17 @@
-use art::{Runtime, net::*};
-use std::io::Write;
+use art::{net::*, Runtime};
+use clap::Parser;
 use std::net::Ipv4Addr;
 
+#[derive(Parser, Debug)]
+struct Args {
+    #[clap(short, long, default_value_t = false)]
+    use_sched: bool,
+}
+
 fn main() {
-    let runtime = Runtime::new();
+    let arg = Args::parse();
+
+    let runtime = Runtime::new(arg.use_sched);
     let spawner = runtime.get_spawner();
 
     runtime.spawn(async move {
@@ -13,16 +21,14 @@ fn main() {
         println!("Server starts on: {}:{}", addr.0, addr.1);
         loop {
             // 非同期コネクションアクセプト
-            let (mut reader, mut writer, addr) = listener.accept().await;
+            let (mut stream, addr) = listener.accept().await;
             println!("accept: {}", addr);
 
             // コネクションごとにタスクを生成
             spawner.spawn(async move {
-                // 1行非同期読み込み
-                while let Some(buf) = reader.read_line().await {
-                    print!("read: {}, {}", addr, buf);
-                    writer.write_all(buf.as_bytes()).unwrap();
-                    writer.flush().unwrap();
+                let mut buf = [0u8; 1024];
+                while let Ok(_size) = stream.read(&mut buf).await {
+                    print!("read: {}, {:?}", addr, buf);
                 }
                 println!("close: {}", addr);
             });
