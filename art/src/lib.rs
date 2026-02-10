@@ -17,16 +17,18 @@ pub struct Runtime {
 
 #[allow(clippy::new_without_default)]
 impl Runtime {
-    pub fn new() -> Self {
+    pub fn new(use_sched: bool) -> Self {
         let selector = selector::IOSelector::new();
         SELECTOR
             .set(selector)
             .expect("Selector has already initialized");
 
-        let sched_client = SchedulerClient::new().unwrap();
-        SCHEDULER
-            .set(sched_client)
-            .expect("Scheduler has already initialized");
+        if use_sched {
+            let sched_client = SchedulerClient::new().unwrap();
+            SCHEDULER
+                .set(sched_client)
+                .expect("Scheduler has already initialized");
+        }
 
         Self {
             executor: executor::Executor::new(),

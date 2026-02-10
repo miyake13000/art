@@ -2,7 +2,7 @@ use super::SELECTOR;
 use nix::sys::epoll::EpollFlags;
 use std::{
     future::Future,
-    io::{BufRead, BufReader, BufWriter},
+    io::{self, Read},
     net::{self, SocketAddr, ToSocketAddrs},
     os::unix::io::{AsRawFd, RawFd},
     pin::Pin,
@@ -48,15 +48,14 @@ pub struct Accept<'a> {
 
 impl<'a> Future for Accept<'a> {
     // 返り値の型
-    type Output = (TcpStream, BufWriter<net::TcpStream>, SocketAddr);
+    type Output = (TcpStream, SocketAddr);
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // アクセプトをノンブロッキングで実行
         match self.listener.listener.accept() {
             Ok((stream, addr)) => {
                 // アクセプトした場合は読み込みと書き込み用オブジェクトおよびアドレスをリターン
-                let stream0 = stream.try_clone().unwrap();
-                Poll::Ready((TcpStream::new(stream0), BufWriter::new(stream), addr))
+                Poll::Ready((TcpStream::new(stream), addr))
             }
             Err(err) => {
                 // アクセプトすべきコネクションがない場合はepollに登録
@@ -80,23 +79,22 @@ impl<'a> Future for Accept<'a> {
 
 #[derive(Debug)]
 pub struct TcpStream {
-    reader: BufReader<net::TcpStream>,
-    reader_fd: RawFd,
+    inner: net::TcpStream,
+    fd: RawFd,
 }
 
 impl TcpStream {
-    fn new(stream: net::TcpStream) -> Self {
+    fn new(inner: net::TcpStream) -> Self {
         // ノンブロッキングに設定
-        stream.set_nonblocking(true).unwrap();
+        inner.set_nonblocking(true).unwrap();
+        let fd = inner.as_raw_fd();
 
-        let reader_fd = stream.as_raw_fd();
-        let reader = BufReader::new(stream);
-        Self { reader, reader_fd }
+        Self { inner, fd }
     }
 
     // 1行読み込みのためのFutureをリターン
-    pub fn read_line(&'_ mut self) -> ReadLine<'_> {
-        ReadLine { reader: self }
+    pub fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> ReadFuture<'a> {
+        ReadFuture { reader: self, buf }
     }
 }
 
@@ -105,39 +103,35 @@ impl Drop for TcpStream {
         SELECTOR
             .get()
             .expect("Selector is not initialized")
-            .unregister(self.reader_fd);
+            .unregister(self.fd);
     }
 }
 
 #[derive(Debug)]
-pub struct ReadLine<'a> {
+pub struct ReadFuture<'a> {
     reader: &'a mut TcpStream,
+    buf: &'a mut [u8],
 }
 
-impl<'a> Future for ReadLine<'a> {
+impl<'a> Future for ReadFuture<'a> {
     // 返り値の型
-    type Output = Option<String>;
+    type Output = io::Result<usize>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut line = String::new();
         // 非同期読み込み
-        match self.reader.reader.read_line(&mut line) {
-            Ok(0) => Poll::Ready(None),       // コネクションクローズ
-            Ok(_) => Poll::Ready(Some(line)), // 1行読み込み成功
+        let this = self.as_mut().get_mut();
+        match this.reader.inner.read(this.buf) {
+            Ok(n) => Poll::Ready(Ok(n)),
             Err(err) => {
                 // 読み込みできない場合はepollに登録
                 if err.kind() == std::io::ErrorKind::WouldBlock {
                     SELECTOR
                         .get()
                         .expect("Selector is not initialized")
-                        .register(
-                            EpollFlags::EPOLLIN,
-                            self.reader.reader_fd,
-                            cx.waker().clone(),
-                        );
+                        .register(EpollFlags::EPOLLIN, this.reader.fd, cx.waker().clone());
                     Poll::Pending
                 } else {
-                    Poll::Ready(None)
+                    Poll::Ready(Err(err))
                 }
             }
         }
