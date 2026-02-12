@@ -27,8 +27,11 @@ fn main() {
             // コネクションごとにタスクを生成
             spawner.spawn(async move {
                 let mut buf = [0u8; 1024];
-                while let Ok(_size) = stream.read(&mut buf).await {
-                    print!("read: {}, {:?}", addr, buf);
+                while let Ok(size) = stream.read(&mut buf).await {
+                    if size == 0 {
+                        break;
+                    }
+                    println!("read: {}, {:?}", addr, &buf[..size]);
                 }
                 println!("close: {}", addr);
             });
