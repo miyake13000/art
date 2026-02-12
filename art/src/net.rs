@@ -16,14 +16,14 @@ pub struct TcpListener {
 
 impl TcpListener {
     // TcpListenerの初期化処理をラップした関数
-    pub fn listen<A: ToSocketAddrs>(addr: A) -> Self {
+    pub fn listen<A: ToSocketAddrs>(addr: A) -> io::Result<Self> {
         // リッスンアドレスを指定
-        let listener = net::TcpListener::bind(addr).unwrap();
+        let listener = net::TcpListener::bind(addr)?;
 
         // ノンブロッキングに指定
-        listener.set_nonblocking(true).unwrap();
+        listener.set_nonblocking(true)?;
 
-        Self { listener }
+        Ok(Self { listener })
     }
 
     // コネクションをアクセプトするためのFutureをリターン
@@ -48,14 +48,14 @@ pub struct Accept<'a> {
 
 impl<'a> Future for Accept<'a> {
     // 返り値の型
-    type Output = (TcpStream, SocketAddr);
+    type Output = io::Result<(TcpStream, SocketAddr)>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // アクセプトをノンブロッキングで実行
         match self.listener.listener.accept() {
             Ok((stream, addr)) => {
                 // アクセプトした場合は読み込みと書き込み用オブジェクトおよびアドレスをリターン
-                Poll::Ready((TcpStream::new(stream), addr))
+                Poll::Ready(Ok((TcpStream::new(stream), addr)))
             }
             Err(err) => {
                 // アクセプトすべきコネクションがない場合はepollに登録
@@ -70,7 +70,7 @@ impl<'a> Future for Accept<'a> {
                         );
                     Poll::Pending
                 } else {
-                    panic!("accept: {}", err);
+                    Poll::Ready(Err(err))
                 }
             }
         }

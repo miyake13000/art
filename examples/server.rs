@@ -17,11 +17,11 @@ fn main() {
     runtime.spawn(async move {
         // 非同期アクセプト用のリスナを生成
         let addr = (Ipv4Addr::new(127, 0, 0, 1), 8000);
-        let listener = TcpListener::listen(addr);
+        let listener = TcpListener::listen(addr).unwrap();
         println!("Server starts on: {}:{}", addr.0, addr.1);
         loop {
             // 非同期コネクションアクセプト
-            let (mut stream, addr) = listener.accept().await;
+            let (mut stream, addr) = listener.accept().await.unwrap();
             println!("accept: {}", addr);
 
             // コネクションごとにタスクを生成
