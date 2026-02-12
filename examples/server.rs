@@ -31,7 +31,8 @@ fn main() {
                     if size == 0 {
                         break;
                     }
-                    println!("read: {}, {:?}", addr, &buf[..size]);
+                    let write_size = stream.write(&buf[..size]).await.unwrap();
+                    println!("echo: {addr}, {write_size} bytes");
                 }
                 println!("close: {}", addr);
             });

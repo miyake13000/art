@@ -2,7 +2,7 @@ use super::SELECTOR;
 use nix::sys::epoll::EpollFlags;
 use std::{
     future::Future,
-    io::{self, Read},
+    io::{self, Read, Write},
     net::{self, SocketAddr, ToSocketAddrs},
     os::unix::io::{AsRawFd, RawFd},
     pin::Pin,
@@ -96,6 +96,10 @@ impl TcpStream {
     pub fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> ReadFuture<'a> {
         ReadFuture { reader: self, buf }
     }
+
+    pub fn write<'a>(&'a mut self, buf: &'a [u8]) -> WriteFuture<'a> {
+        WriteFuture { writer: self, buf }
+    }
 }
 
 impl Drop for TcpStream {
@@ -129,6 +133,37 @@ impl<'a> Future for ReadFuture<'a> {
                         .get()
                         .expect("Selector is not initialized")
                         .register(EpollFlags::EPOLLIN, this.reader.fd, cx.waker().clone());
+                    Poll::Pending
+                } else {
+                    Poll::Ready(Err(err))
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct WriteFuture<'a> {
+    writer: &'a mut TcpStream,
+    buf: &'a [u8],
+}
+
+impl<'a> Future for WriteFuture<'a> {
+    // 返り値の型
+    type Output = io::Result<usize>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // 非同期読み込み
+        let this = self.as_mut().get_mut();
+        match this.writer.inner.write(this.buf) {
+            Ok(n) => Poll::Ready(Ok(n)),
+            Err(err) => {
+                // 読み込みできない場合はepollに登録
+                if err.kind() == std::io::ErrorKind::WouldBlock {
+                    SELECTOR
+                        .get()
+                        .expect("Selector is not initialized")
+                        .register(EpollFlags::EPOLLOUT, this.writer.fd, cx.waker().clone());
                     Poll::Pending
                 } else {
                     Poll::Ready(Err(err))
