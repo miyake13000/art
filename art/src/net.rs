@@ -1,4 +1,4 @@
-use super::SELECTOR;
+use super::{SCHEDULER, SELECTOR};
 use nix::sys::epoll::EpollFlags;
 use std::{
     future::Future,
@@ -125,7 +125,14 @@ impl<'a> Future for ReadFuture<'a> {
         // 非同期読み込み
         let this = self.as_mut().get_mut();
         match this.reader.inner.read(this.buf) {
-            Ok(n) => Poll::Ready(Ok(n)),
+            Ok(n) => {
+                // スケジューラが有効な場合は優先権を取得
+                if let Some(s) = SCHEDULER.get() {
+                    s.get_priority().unwrap();
+                }
+
+                Poll::Ready(Ok(n))
+            }
             Err(err) => {
                 // 読み込みできない場合はepollに登録
                 if err.kind() == std::io::ErrorKind::WouldBlock {
@@ -156,7 +163,14 @@ impl<'a> Future for WriteFuture<'a> {
         // 非同期読み込み
         let this = self.as_mut().get_mut();
         match this.writer.inner.write(this.buf) {
-            Ok(n) => Poll::Ready(Ok(n)),
+            Ok(n) => {
+                // スケジューラが有効な場合は優先権を放棄
+                if let Some(s) = SCHEDULER.get() {
+                    s.release_priority().unwrap();
+                }
+
+                Poll::Ready(Ok(n))
+            }
             Err(err) => {
                 // 読み込みできない場合はepollに登録
                 if err.kind() == std::io::ErrorKind::WouldBlock {
